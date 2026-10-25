@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oscar Cam</title>
+<link rel="stylesheet" href="style.css">
+<script src="hls.min.js"></script>
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header id="topbar">
+  <div id="brand">Oscar Cam</div>
+  <div id="header-controls">
+    <label id="layout-label">Layout
+      <select id="layout-select" aria-label="Layout"></select>
+    </label>
+    <button id="btn-edit-layout" type="button">Edit layout</button>
+    <button id="btn-cameras" type="button">Cameras</button>
+    <button id="btn-settings" type="button">Settings</button>
+  </div>
+</header>
+
+<main>
+  <!-- Grid view -->
+  <section id="view-grid" class="view">
+    <div id="grid-empty" class="empty hidden">
+      <p>No cameras yet.</p>
+      <button id="btn-empty-add" type="button">Add camera</button>
+    </div>
+    <div id="grid" role="grid" aria-label="Camera grid"></div>
+  </section>
+
+  <!-- Layout editor view -->
+  <section id="view-editor" class="view hidden">
+    <div class="toolbar">
+      <label>Layout name <input id="ed-name" type="text"></label>
+      <label>Columns
+        <button id="ed-cols-down" type="button">−</button>
+        <span id="ed-cols-val">3</span>
+        <button id="ed-cols-up" type="button">+</button>
+      </label>
+      <label>Rows
+        <button id="ed-rows-down" type="button">−</button>
+        <span id="ed-rows-val">3</span>
+        <button id="ed-rows-up" type="button">+</button>
+      </label>
+      <button id="btn-preset-1" type="button">1</button>
+      <button id="btn-preset-2" type="button">2×2</button>
+      <button id="btn-preset-3" type="button">3×3</button>
+      <button id="btn-preset-4" type="button">4×4 *</button>
+      <button id="btn-ed-add" type="button">Add tile</button>
+      <button id="btn-ed-remove" type="button">Remove tile</button>
+      <button id="btn-ed-resize" type="button">Resize: off</button>
+      <button id="btn-ed-save" type="button" class="primary">Save</button>
+      <button id="btn-ed-cancel" type="button">Cancel</button>
+      <button id="btn-ed-new" type="button">New layout</button>
+      <button id="btn-ed-delete" type="button">Delete layout</button>
+    </div>
+    <p class="hint">Drag tiles with the pointer to move them. Drag a corner handle to resize. With the remote: select a tile, press OK to move it, arrows to move, OK to place, Back to cancel. * 4×4 (16 tiles) is untested on the C3 — 9 tiles is the proven cap.</p>
+    <div id="editor-grid" role="grid" aria-label="Layout editor"></div>
+    <div id="ed-add-row" class="hidden">
+      <label>Add camera
+        <select id="ed-add-select"></select>
+      </label>
+      <button id="btn-ed-add-confirm" type="button">Add</button>
+    </div>
+  </section>
+
+  <!-- Cameras view -->
+  <section id="view-cameras" class="view hidden">
+    <h2>Cameras</h2>
+    <div id="camera-list"></div>
+    <h3 id="cam-form-title">Add camera</h3>
+    <form id="cam-form">
+      <label>Name <input id="f-name" type="text" autocomplete="off"></label>
+      <label>Type
+        <select id="f-type">
+          <option value="go2rtc">go2rtc stream</option>
+          <option value="webrtc">WebRTC (ws URL)</option>
+          <option value="mjpeg">MJPEG URL</option>
+          <option value="hls">HLS URL</option>
+        </select>
+      </label>
+      <label id="row-stream">Grid stream name <input id="f-stream" type="text" autocomplete="off" placeholder="e.g. cam1_front_street_sub"></label>
+      <label id="row-mainstream">Fullscreen stream name (optional) <input id="f-mainstream" type="text" autocomplete="off" placeholder="e.g. cam1_front_street"></label>
+      <label id="row-url" class="hidden">URL <input id="f-url" type="text" autocomplete="off" inputmode="url"></label>
+      <label id="row-user" class="hidden">Username <input id="f-user" type="text" autocomplete="off"></label>
+      <label id="row-pass" class="hidden">Password <input id="f-pass" type="password" autocomplete="off"></label>
+      <p id="cam-form-error" class="error hidden"></p>
+      <button id="btn-cam-save" type="submit" class="primary">Save camera</button>
+      <button id="btn-cam-cancel" type="button">Cancel</button>
+    </form>
+    <p class="hint">go2rtc cameras use the server URL from Settings, so they need no username or password here. MJPEG and HLS cameras can embed credentials in the URL or use the username and password fields.</p>
+    <button id="btn-back-grid-1" type="button">Back to grid</button>
+  </section>
+
+  <!-- Settings view -->
+  <section id="view-settings" class="view hidden">
+    <h2>Settings</h2>
+    <label>go2rtc server URL
+      <input id="s-go2rtc" type="text" inputmode="url" placeholder="http://192.168.0.58:1984">
+    </label>
+    <button id="btn-settings-save" type="button" class="primary">Save settings</button>
+    <h3>Backup / restore</h3>
+    <p class="hint">This is the same format the future Android companion app will use to send a configuration to the TV.</p>
+    <textarea id="s-export" rows="8" readonly aria-label="Exported configuration"></textarea>
+    <button id="btn-export-refresh" type="button">Refresh export</button>
+    <textarea id="s-import" rows="8" placeholder="Paste an exported configuration here to restore it." aria-label="Import configuration"></textarea>
+    <button id="btn-import" type="button">Import</button>
+    <p id="settings-msg" class="hidden"></p>
+    <h3>About</h3>
+    <p>Oscar Cam 0.1.0 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>Playback credits: VideoRTC by AlexxIT (go2rtc project, MIT) for go2rtc and WebRTC tiles; hls.js for HLS tiles. Proven on the C3: 9 simultaneous go2rtc substreams, smooth. Raw RTSP is not playable in the TV browser — use go2rtc or a camera-native browser-playable stream.</p>
+    <button id="btn-back-grid-2" type="button">Back to grid</button>
+  </section>
+</main>
+
+<!-- Fullscreen overlay -->
+<div id="fullscreen" class="hidden" role="dialog" aria-label="Fullscreen camera">
+  <div id="fs-player"></div>
+  <div id="fs-bar">
+    <span id="fs-name"></span>
+    <button id="btn-fs-mute" type="button">Unmute</button>
+    <button id="btn-fs-back" type="button">Back</button>
+  </div>
+</div>
+
+</body>
+</html>
