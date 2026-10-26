@@ -11,6 +11,18 @@ Endpoints (all JSON):
   GET  /health            -> {"ok": true, "cameras": [...]}
   POST /ptz               {"camera": "<key or stream name>", "action": ...}
                           actions: left, right, up, down, zoom_in, zoom_out, home
+  POST /ptz (diagnostic)  {"camera": ..., "action": "continuous",
+                           "pan": 0.3, "tilt": 0, "zoom": null} then
+                          {"camera": ..., "action": "stop"} — velocity moves
+                          are NOT used by the TV app; they exist only to test
+                          firmwares whose RelativeMove answers 200 and ignores it.
+  POST /ptz (TV pulse)    {"camera": ..., "action": "pulse",
+                           "pan": -0.5, "tilt": 0, "zoom": null,
+                           "duration_ms": 1000} — one TV button press: the
+                          proxy starts the velocity move, waits, and stops it
+                          server-side, so a lost message can never leave the
+                          camera panning. pan/tilt/zoom are signed velocities
+                          in [-1, 1]; duration is clamped to 100–3000 ms.
   GET  /status?camera=X   -> ONVIF GetStatus (read-only, never moves a camera)
 
 Safety rules:
@@ -35,6 +47,7 @@ import json
 import os
 import re
 import secrets
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -70,12 +83,19 @@ MEDIA_CACHE = {}    # camera key -> media service URL
 
 def resolve_camera(value):
     """Accept a config key ('cam1'), a go2rtc stream name
-    ('cam1_front_street_sub'), or a bare camera name."""
+    ('cam1_front_street_sub'), a stream URL (matched by camera IP), or a
+    bare camera name."""
     if not value:
         return None
     v = str(value).strip().lower()
     if v in CONFIG:
         return v
+    ip_to_key = {"192.168.0.24": "cam1", "192.168.0.92": "cam5",
+                 "192.168.0.32": "cam6", "192.168.0.145": "cam7",
+                 "192.168.0.31": "cam8"}
+    for ip, key in ip_to_key.items():
+        if ip in v:
+            return key
     first = v.split("_")[0].split("-")[0]
     if first in CONFIG:
         return first
@@ -228,7 +248,21 @@ def get_profile_token(cam):
     return token
 
 
+# Cameras whose ONVIF pan axis is inverted (positive pan moves the camera
+# LEFT). Frame-confirmed for cam7 on 2026-10-26: a +0.3 pan pulse moved the
+# view left. The proxy flips the pan sign for these cameras so the TV's
+# arrows match the picture. Tilt and zoom are NOT flipped (untested).
+INVERT_PAN = frozenset({"cam7"})
+
+
+def pan_for(cam, pan):
+    if pan is None or cam not in INVERT_PAN:
+        return pan
+    return -pan
+
+
 def do_relative_move(cam, pan, tilt, zoom):
+    pan = pan_for(cam, pan)
     entry = CONFIG[cam]
     token = get_profile_token(cam)
     translation = ""
@@ -268,6 +302,85 @@ def do_home(cam):
                      entry.get("user"), entry.get("password"))
 
 
+def do_continuous(cam, pan, tilt, zoom):
+    """Velocity move: keeps going until Stop. Used only as a diagnostic
+    (some firmwares accept RelativeMove with 200 and ignore it, while
+    ContinuousMove actually drives the motor)."""
+    pan = pan_for(cam, pan)
+    entry = CONFIG[cam]
+    token = get_profile_token(cam)
+    velocity = ""
+    if pan is not None or tilt is not None:
+        velocity += '<tt:PanTilt x="%s" y="%s" space="%s"/>' % (
+            pan or 0, tilt or 0,
+            "http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace")
+    if zoom is not None:
+        velocity += '<tt:Zoom x="%s" space="%s"/>' % (
+            zoom, "http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace")
+    body = (
+        '<tptz:ContinuousMove xmlns:tptz="%s" xmlns:tt="%s">'
+        "<tptz:ProfileToken>%s</tptz:ProfileToken>"
+        "<tptz:Velocity>%s</tptz:Velocity>"
+        "</tptz:ContinuousMove>" % (PTZ_NS, SCHEMA_NS, escape(token), velocity)
+    )
+    return soap_post(entry["ptz_url"], body, PTZ_NS + "/ContinuousMove",
+                     entry.get("user"), entry.get("password"))
+
+
+def do_pulse(cam, req):
+    """One TV button press: velocity move for a fixed duration, then stop.
+    The stop is server-side, so a lost message can never leave the camera
+    panning. If the start itself fails, the stop is still attempted (the
+    start may have executed despite the failure)."""
+    try:
+        duration_ms = int(req.get("duration_ms") or 1000)
+    except (TypeError, ValueError):
+        duration_ms = 1000
+    duration_ms = max(100, min(3000, duration_ms))
+
+    def vel(v):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        if f == 0:
+            return 0
+        return max(-1.0, min(1.0, f))
+
+    start_err = None
+    try:
+        status, text = do_continuous(
+            cam, vel(req.get("pan")), vel(req.get("tilt")), vel(req.get("zoom")))
+        if status != 200:
+            start_err = "continuous HTTP %s: %s" % (status, fault_text(text))
+    except Exception as e:
+        start_err = "continuous %s" % type(e).__name__
+    time.sleep(duration_ms / 1000.0)
+    try:
+        stop_status, stop_text = do_stop(cam)
+    except Exception as e:
+        return 502, "pulse stop failed (%s)" % type(e).__name__
+    if stop_status != 200:
+        return 502, "pulse stop HTTP %s: %s" % (stop_status, fault_text(stop_text))
+    if start_err:
+        return 502, "pulse start failed (%s) but stop succeeded" % start_err
+    return 200, "pulse ok"
+
+
+def do_stop(cam):
+    entry = CONFIG[cam]
+    token = get_profile_token(cam)
+    body = (
+        '<tptz:Stop xmlns:tptz="%s">'
+        "<tptz:ProfileToken>%s</tptz:ProfileToken>"
+        "<tptz:PanTilt>true</tptz:PanTilt>"
+        "<tptz:Zoom>true</tptz:Zoom>"
+        "</tptz:Stop>" % (PTZ_NS, escape(token))
+    )
+    return soap_post(entry["ptz_url"], body, PTZ_NS + "/Stop",
+                     entry.get("user"), entry.get("password"))
+
+
 def do_status(cam):
     entry = CONFIG[cam]
     token = get_profile_token(cam)
@@ -288,6 +401,9 @@ ACTIONS = {
     "zoom_in": lambda cam: do_relative_move(cam, None, None, STEP),
     "zoom_out": lambda cam: do_relative_move(cam, None, None, -STEP),
     "home": do_home,
+    "continuous": None,  # special-cased in do_POST: needs a velocity vector
+    "stop": do_stop,
+    "pulse": None,  # special-cased in do_POST: needs the request body
 }
 
 
@@ -343,14 +459,18 @@ class Handler(BaseHTTPRequestHandler):
                 print("status %s: HTTP %s %s" % (cam, status, fault_text(text)), flush=True)
                 self._send(502, {"ok": False, "error": "camera HTTP %s: %s" % (status, fault_text(text))})
                 return
-            pan = re.search(r"<[A-Za-z0-9]+:PanTilt[^>]*\sx=\"([^\"]+)\"[^>]*\sy=\"([^\"]+)\"", text)
+            pan_el = re.search(r"<[A-Za-z0-9]+:PanTilt([^>]*)/?>", text)
             zoom = re.search(r"<[A-Za-z0-9]+:Zoom[^>]*\sx=\"([^\"]+)\"", text)
             pos = None
-            if pan or zoom:
+            if pan_el or zoom:
                 pos = {}
-                if pan:
-                    pos["pan"] = pan.group(1)
-                    pos["tilt"] = pan.group(2)
+                if pan_el:
+                    xm = re.search(r"\sx=\"([^\"]+)\"", pan_el.group(1))
+                    ym = re.search(r"\sy=\"([^\"]+)\"", pan_el.group(1))
+                    if xm:
+                        pos["pan"] = xm.group(1)
+                    if ym:
+                        pos["tilt"] = ym.group(1)
                 if zoom:
                     pos["zoom"] = zoom.group(1)
             print("status %s: ok" % cam, flush=True)
@@ -381,7 +501,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"ok": False, "error": "unknown action"})
             return
         try:
-            status, text = ACTIONS[action](cam)
+            if action == "pulse":
+                status, text = do_pulse(cam, req)
+            elif action == "continuous":
+                status, text = do_continuous(
+                    cam, req.get("pan"), req.get("tilt"), req.get("zoom"))
+            else:
+                status, text = ACTIONS[action](cam)
         except Exception as e:
             print("ptz %s %s: transport error %s" % (cam, action, type(e).__name__), flush=True)
             self._send(502, {"ok": False, "error": "camera unreachable (%s); command may not have run" % type(e).__name__})

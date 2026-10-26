@@ -1,4 +1,4 @@
-// Oscar Cam 0.1.3 — LAN-only camera grid for webOS TV.
+// Oscar Cam 0.1.4 — LAN-only camera grid for webOS TV.
 // Playback: go2rtc / WebRTC tiles use VideoRTC (AlexxIT, go2rtc project,
 // MIT) bundled as video-rtc.js. HLS tiles use hls.js. MJPEG tiles use <img>.
 // State lives in localStorage under LS_KEY. The exported JSON format is a
@@ -393,9 +393,13 @@ function toggleFsMute() {
 // ---- PTZ (through the NAS-side proxy) ----
 // The TV cannot call the cameras' ONVIF services directly (no CORS), so
 // fullscreen PTZ mode sends small JSON actions to the proxy on the NAS,
-// which issues the ONVIF RelativeMove / GotoHomePosition calls with the
-// camera logins held server-side. Steps are bounded RelativeMoves, so a
-// lost message can never send a camera spinning.
+// which issues the ONVIF calls with the camera logins held server-side.
+// Moves are velocity pulses, not steps: the proxy starts a ContinuousMove,
+// waits about a second, and stops it server-side, so a lost message can
+// never send a camera spinning. (RelativeMove steps were tried in 0.1.3
+// and this firmware answers them with 200 while ignoring them; velocity
+// moves are the path that actually drives the motor. Home still uses
+// GotoHomePosition.)
 let ptzMode = false;
 let ptzBusy = false;
 
@@ -412,9 +416,17 @@ function ptzBase() {
 }
 
 // Proxy camera key: the stream-name prefix (cam1_front_street_sub -> cam1).
+// Discovery-added cameras store a full source URL as the stream, so match
+// those by camera IP; fall back to a CAMn name.
 function ptzKeyFor(cam) {
   const s = (cam.stream || '').toLowerCase();
-  return s.split('_')[0].split('-')[0] || '';
+  const byIp = { '192.168.0.24': 'cam1', '192.168.0.92': 'cam5', '192.168.0.32': 'cam6', '192.168.0.145': 'cam7', '192.168.0.31': 'cam8' };
+  for (const ip in byIp) if (s.indexOf(ip) >= 0) return byIp[ip];
+  const key = s.split('_')[0].split('-')[0];
+  if (key) return key;
+  const m = (cam.name || '').toLowerCase().match(/cam\s*([0-9]+)/);
+  if (m) return 'cam' + m[1];
+  return '';
 }
 
 function ptzStatus(text) {
@@ -439,10 +451,21 @@ async function sendPtz(action) {
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 15000);
+    let body;
+    if (action === 'home') {
+      body = { camera: ptzKeyFor(fsCam), action: 'home' };
+    } else {
+      // One press = one velocity pulse (0.5 speed, 1 second). The proxy
+      // stops the move server-side, so the camera cannot run away.
+      const vec = { left: { pan: -0.5 }, right: { pan: 0.5 }, up: { tilt: 0.5 }, down: { tilt: -0.5 }, zoom_in: { zoom: 0.5 }, zoom_out: { zoom: -0.5 } }[action];
+      if (!vec) { ptzBusy = false; return; }
+      body = { camera: ptzKeyFor(fsCam), action: 'pulse', duration_ms: 1000,
+               pan: vec.pan || 0, tilt: vec.tilt || 0, zoom: vec.zoom || null };
+    }
     const res = await fetch(base + '/ptz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ camera: ptzKeyFor(fsCam), action }),
+      body: JSON.stringify(body),
       signal: ctl.signal,
     });
     clearTimeout(t);

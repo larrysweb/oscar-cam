@@ -1,18 +1,1 @@
-{
-  "id": "com.larrysweb.oscarcam",
-  "version": "0.1.3",
-  "type": "web",
-  "title": "Oscar Cam",
-  "appDescription": "Free, LAN-only camera grid for rooted LG webOS TVs. Arrange IP cameras in an adjustable grid; plays go2rtc, WebRTC, MJPEG and HLS streams. No account, no cloud, no telemetry. Requires go2rtc running on your home network for RTSP cameras (it does not run on the TV). PTZ control for go2rtc cameras (fullscreen mode) works through a small proxy on your NAS.",
-  "iconUri": "https://larrysweb.github.io/oscar-cam/icon.png",
-  "sourceUrl": "https://github.com/larrysweb/oscar-cam",
-  "rootRequired": false,
-  "ipkUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam_0.1.3_all.ipk",
-  "ipkHash": {
-    "sha256": "a443fa8ac87b5c4e1b62f855cf2d6f1c8f507641fee7403558cb97118c462084"
-  },
-  "ipkSize": 212050,
-  "requirements": {
-    "webosRelease": ">=5.0"
-  }
-}
+{"appDescription":"Free, LAN-only camera grid for rooted LG webOS TVs. Arrange IP cameras in an adjustable grid; plays go2rtc, WebRTC, MJPEG and HLS streams. No account, no cloud, no telemetry. Requires go2rtc running on your home network for RTSP cameras (it does not run on the TV). PTZ control for go2rtc cameras (fullscreen mode) works through a small proxy on your NAS.","iconUri":"https://larrysweb.github.io/oscar-cam/icon.png","id":"com.larrysweb.oscarcam","ipkHash":{"sha256":"5270cbd552c3d1b568e4b6ca5309013f4e1f8466d955b4ce91d4c3ed9c1602c6"},"ipkSize":212586,"ipkUrl":"https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam_0.1.4_all.ipk","requirements":{"webosRelease":">=5.0"},"rootRequired":false,"sourceUrl":"https://github.com/larrysweb/oscar-cam","title":"Oscar Cam","type":"web","version":"0.1.4"}

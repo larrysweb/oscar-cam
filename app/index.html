@@ -147,8 +147,8 @@
     <p>WebSocket test: <span id="diag-ws">Not run yet</span></p>
     <button id="btn-diag-run" type="button">Run connection tests</button>
     <h3>About</h3>
-    <p>Oscar Cam 0.1.3 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
-    <p>PTZ: in fullscreen, tap PTZ — remote arrows step the camera, with zoom in/out and Home buttons. Moves go through a small proxy on your NAS (port 1985) that holds the camera logins, so they never sit in the TV app. PTZ is offered for go2rtc cameras only.</p>
+    <p>Oscar Cam 0.1.4 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>PTZ: in fullscreen, tap PTZ — remote arrows pulse the camera (about a second per press), with zoom in/out and Home buttons. Moves go through a small proxy on your NAS (port 1985) that holds the camera logins, so they never sit in the TV app. PTZ is offered for go2rtc cameras only.</p>
     <p>Playback credits: VideoRTC by AlexxIT (go2rtc project, MIT) for go2rtc and WebRTC tiles; hls.js for HLS tiles. Proven on the C3: 9 simultaneous go2rtc substreams, smooth. Raw RTSP is not playable in the TV browser — use go2rtc or a camera-native browser-playable stream.</p>
     <button id="btn-back-grid-2" type="button">Back to grid</button>
   </section>
@@ -167,7 +167,7 @@
     <button id="btn-fs-back" type="button">Back</button>
   </div>
   <div id="fs-ptz" class="hidden">
-    <p class="hint">PTZ mode — arrow keys step the camera. Zoom, Home, and Exit work by pointer tap too.</p>
+    <p class="hint">PTZ mode — arrow keys pulse the camera (about a second per press). Zoom, Home, and Exit work by pointer tap too.</p>
     <button id="btn-ptz-zoom-in" type="button">Zoom in</button>
     <button id="btn-ptz-zoom-out" type="button">Zoom out</button>
     <button id="btn-ptz-home" type="button">Home</button>

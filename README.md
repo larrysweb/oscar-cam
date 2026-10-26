@@ -67,19 +67,26 @@ protections, all on by default and adjustable in Settings:
 Any remote key or pointer movement wakes everything back up. These help, but
 they are not a substitute for turning the grid off when you are done watching.
 
-## PTZ control (from 0.1.3)
+## PTZ control (from 0.1.3; velocity pulses from 0.1.4)
 
-Open a go2rtc camera fullscreen and tap PTZ: the remote arrows step the
-camera (small bounded moves), with zoom in/out and Home buttons in the
-pad. Back exits PTZ mode first, then fullscreen.
+Open a go2rtc camera fullscreen and tap PTZ: the remote arrows pulse the
+camera (a velocity move of about a second per press), with zoom in/out
+and Home buttons in the pad. Back exits PTZ mode first, then fullscreen.
 
 The TV app cannot call the cameras' ONVIF services directly (no CORS),
 and go2rtc has no PTZ-send API, so moves go through a small proxy that
 runs on your NAS (port 1985, LAN only) — see `ptz-proxy/`. The proxy
 holds the camera logins, so they never sit in the TV app, and it only
-ever sends bounded relative moves: a lost message cannot send a camera
-spinning. PTZ on a real TV is not yet proven — advertised PTZ does not
-always mean the camera physically moves.
+ever sends velocity pulses that it stops itself after about a second:
+a lost message cannot send a camera spinning. (0.1.3 sent bounded
+relative steps instead; one camera's firmware answered those with 200
+and ignored them, while velocity moves drive the motor — hence the
+switch.) Cameras added through Discover match the proxy by IP or name
+as well as stream prefix. A camera whose pan axis is inverted (one
+back-fence camera in testing answers positive pan with a left move)
+gets a per-camera pan flip in the proxy, so the arrows match the
+picture. PTZ moves are proven from NAS-side tests; moving a camera
+from the TV pad is not yet proven.
 
 ## Proven on an LG C3 (2026-10-25)
 
@@ -93,7 +100,8 @@ always mean the camera physically moves.
   states that anything unmentioned is "not supported or not recommended":
   https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm
 - ONVIF discovery (via go2rtc) is included from 0.1.2.
-- PTZ control is included from 0.1.3; moving a real camera on the TV is not yet proven.
+- PTZ control is included from 0.1.3 (velocity pulses from 0.1.4);
+  moving a camera from the TV pad is not yet proven.
 
 ## Security notes, stated plainly
 
@@ -145,5 +153,5 @@ when something does not play.
 
 ## Status
 
-Version 0.1.3. ONVIF discovery and PTZ control included (PTZ TV
-testing pending). License: MIT (see `LICENSE`).
+Version 0.1.4. ONVIF discovery and PTZ control included (velocity
+pulses; TV-pad testing pending). License: MIT (see `LICENSE`).
