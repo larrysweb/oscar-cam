@@ -17,7 +17,8 @@
       "requirements": {
         "webosRelease": ">=5.0"
       },
-      "manifestUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam.manifest.json"
+      "manifestUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam.manifest.json",
+      "shortDescription": "Free, LAN-only camera grid for rooted LG webOS TVs."
     }
   ]
 }

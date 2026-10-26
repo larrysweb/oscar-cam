@@ -9,9 +9,9 @@
   "rootRequired": false,
   "ipkUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam_0.1.0_all.ipk",
   "ipkHash": {
-    "sha256": "e38c3eb9141b9ca1e906faf6cfb2ce470f5bb142d3a3a6100086fe97f89abaf8"
+    "sha256": "0e9b61abc5fea56682cc9e3dc402784dee0c487893f6b007a1fa46b1d6db8b44"
   },
-  "ipkSize": 206524,
+  "ipkSize": 206924,
   "requirements": {
     "webosRelease": ">=5.0"
   },
