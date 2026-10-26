@@ -17,7 +17,10 @@ no telemetry. Camera credentials stay on the TV.
 - ONVIF cameras, or any camera go2rtc can already stream. Cameras that
   natively serve MJPEG or HLS work without go2rtc, but most IP cameras are
   RTSP-only, and raw RTSP does not play in the TV browser — that is why
-  go2rtc is in the stack.
+  go2rtc is in the stack. Already running Agent DVR (or Frigate)? Its
+  MJPEG endpoint (Agent DVR: http://<server>:8090/video.mjpg?oid=N) can be
+  added as an MJPEG camera in Oscar Cam — no go2rtc needed for those
+  cameras. Compatible by design; not yet tested on the C3.
 
 ## Install
 
