@@ -20,7 +20,8 @@ no telemetry. Camera credentials stay on the TV.
   go2rtc is in the stack. Already running Agent DVR (or Frigate)? Its
   MJPEG endpoint (Agent DVR: http://<server>:8090/video.mjpg?oid=N) can be
   added as an MJPEG camera in Oscar Cam — no go2rtc needed for those
-  cameras. Compatible by design; not yet tested on the C3.
+  cameras. Agent DVR is also available as a Home Assistant add-on.
+  Compatible by design; not yet tested on the C3.
 
 ## Install
 
