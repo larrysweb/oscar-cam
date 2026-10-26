@@ -65,7 +65,10 @@ they are not a substitute for turning the grid off when you are done watching.
 - 9 simultaneous go2rtc substreams play smooth, no freezing/stuttering.
   Grid cap is at least 9; 4×4 (16 tiles) is untested.
 - Raw RTSP does NOT play in the TV browser — use go2rtc or a
-  camera-native browser-playable stream.
+  camera-native browser-playable stream. LG's own spec lists only
+  HTTP/HTTPS and HLS as supported streaming protocols for webOS TV, and
+  states that anything unmentioned is "not supported or not recommended":
+  https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm
 - ONVIF discovery (via go2rtc) is included from 0.1.2.
 
 ## Security notes, stated plainly
