@@ -1,17 +1,17 @@
 {
   "id": "com.larrysweb.oscarcam",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "web",
   "title": "Oscar Cam",
   "appDescription": "Free, LAN-only camera grid for rooted LG webOS TVs. Arrange IP cameras in an adjustable grid; plays go2rtc, WebRTC, MJPEG and HLS streams. No account, no cloud, no telemetry.",
   "iconUri": "https://larrysweb.github.io/oscar-cam/icon.png",
   "sourceUrl": "https://github.com/larrysweb/oscar-cam",
   "rootRequired": false,
-  "ipkUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam_0.1.0_all.ipk",
+  "ipkUrl": "https://larrysweb.github.io/oscar-cam/com.larrysweb.oscarcam_0.1.1_all.ipk",
   "ipkHash": {
-    "sha256": "c6788847b463e1a4d6a8b8bba989213f608b7b3a422c02a51abf33fd8f9b75d5"
+    "sha256": "e3225f9e6a089c6c63f163c20ed9b9ac46e39346c073cdc786fdd24053165f85"
   },
-  "ipkSize": 207188,
+  "ipkSize": 207624,
   "requirements": {
     "webosRelease": ">=5.0"
   },

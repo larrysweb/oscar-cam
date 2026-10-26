@@ -1,4 +1,4 @@
-// Oscar Cam 0.1.0 — LAN-only camera grid for webOS TV.
+// Oscar Cam 0.1.1 — LAN-only camera grid for webOS TV.
 // Playback: go2rtc / WebRTC tiles use VideoRTC (AlexxIT, go2rtc project,
 // MIT) bundled as video-rtc.js. HLS tiles use hls.js. MJPEG tiles use <img>.
 // State lives in localStorage under LS_KEY. The exported JSON format is
@@ -46,6 +46,24 @@ function activeLayout() {
   return state.layouts.find((l) => l.id === state.activeLayoutId) || state.layouts[0] || null;
 }
 
+// Return the active layout, creating the automatic "All" layout first when
+// none exists yet (so Edit layout and the grid never dead-end on first run).
+function ensureLayout() {
+  let layout = activeLayout();
+  if (layout) return layout;
+  const cols = 3;
+  layout = {
+    id: uid(), name: 'All', cols,
+    rows: Math.max(1, Math.ceil(state.cameras.length / cols)),
+    cells: state.cameras.map((cam, i) => ({ cameraId: cam.id, x: i % cols, y: Math.floor(i / cols), w: 1, h: 1 })),
+  };
+  state.layouts.push(layout);
+  state.activeLayoutId = layout.id;
+  saveState();
+  refreshLayoutSelect();
+  return layout;
+}
+
 function camById(id) { return state.cameras.find((c) => c.id === id) || null; }
 
 function go2rtcBase() { return (state.settings.go2rtcBase || '').replace(/\/+$/, ''); }
@@ -73,7 +91,7 @@ function showView(name) {
   }
   if (name === 'grid') renderGridView();
   if (name === 'cameras') renderCameraList();
-  if (name === 'settings') refreshExport();
+  if (name === 'settings') { refreshExport(); refreshDiagnostics(); }
 }
 
 function setTileStatus(tileEl, text) {
@@ -297,8 +315,7 @@ function toggleFsMute() {
 
 // ---- Layout editor ----
 function openEditor() {
-  const layout = activeLayout();
-  if (!layout) return;
+  const layout = ensureLayout();
   draftLayout = JSON.parse(JSON.stringify(layout));
   moveCell = null;
   resizeMode = false;
@@ -450,6 +467,12 @@ function openCamForm(cam) {
 function refreshExport() {
   $('s-export').value = JSON.stringify(state, null, 2);
   $('s-go2rtc').value = state.settings.go2rtcBase || '';
+}
+
+function refreshDiagnostics() {
+  $('diag-url').textContent = location.href;
+  $('diag-secure').textContent = String(window.isSecureContext);
+  $('diag-ua').textContent = navigator.userAgent;
 }
 
 // ---- Spatial navigation (remote arrows) ----
@@ -692,8 +715,8 @@ $('cam-form').addEventListener('submit', (ev) => {
   const err = $('cam-form-error');
   const name = $('f-name').value.trim();
   const type = $('f-type').value;
-  const stream = $('f-stream').value.trim();
-  const mainStream = $('f-mainstream').value.trim();
+  const stream = $('f-stream').value.trim().replace(/\/+$/, '');
+  const mainStream = $('f-mainstream').value.trim().replace(/\/+$/, '');
   const url = $('f-url').value.trim();
   const username = $('f-user').value.trim();
   const password = $('f-pass').value;
@@ -706,8 +729,8 @@ $('cam-form').addEventListener('submit', (ev) => {
   if (idx >= 0) state.cameras[idx] = rec;
   else {
     state.cameras.push(rec);
-    const layout = activeLayout();
-    if (layout && layout.cells.length === 0) {
+    const layout = ensureLayout();
+    if (layout.cells.length === 0) {
       layout.cells.push({ cameraId: rec.id, x: 0, y: 0, w: 1, h: 1 });
     }
   }
@@ -717,12 +740,44 @@ $('cam-form').addEventListener('submit', (ev) => {
 $('btn-cam-cancel').addEventListener('click', () => openCamForm(null));
 
 $('btn-settings-save').addEventListener('click', () => {
-  state.settings.go2rtcBase = $('s-go2rtc').value.trim();
+  state.settings.go2rtcBase = $('s-go2rtc').value.trim().replace(/\/+$/, '');
   saveState();
   const msg = $('settings-msg');
   msg.textContent = 'Settings saved.';
   msg.classList.remove('hidden');
   refreshExport();
+});
+$('btn-diag-run').addEventListener('click', async () => {
+  const base = go2rtcBase();
+  const fEl = $('diag-fetch');
+  const wEl = $('diag-ws');
+  if (!base) { fEl.textContent = 'go2rtc base URL not set'; wEl.textContent = 'go2rtc base URL not set'; return; }
+  const stream = (state.cameras.find((c) => c.type === 'go2rtc') || {}).stream || 'cam5_back_deck_sub';
+  fEl.textContent = 'Trying ' + base + '/api/streams …';
+  wEl.textContent = 'Waiting…';
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(base + '/api/streams', { signal: ctl.signal });
+    clearTimeout(t);
+    fEl.textContent = 'OK — HTTP ' + res.status;
+  } catch (e) {
+    fEl.textContent = 'FAILED — ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : e);
+  }
+  const wsUrl = base.replace(/^http/, 'ws') + '/api/ws?src=' + encodeURIComponent(stream);
+  wEl.textContent = 'Trying ' + wsUrl + ' …';
+  try {
+    await new Promise((resolve, reject) => {
+      const ws = new WebSocket(wsUrl);
+      const t = setTimeout(() => { try { ws.close(); } catch (e) { /* ignore */ } reject(new Error('timeout after 8s')); }, 8000);
+      ws.addEventListener('open', () => { clearTimeout(t); try { ws.close(); } catch (e) { /* ignore */ } resolve(); });
+      ws.addEventListener('error', () => { clearTimeout(t); reject(new Error('error event')); });
+      ws.addEventListener('close', (ev) => { clearTimeout(t); reject(new Error('closed, code ' + ev.code)); });
+    });
+    wEl.textContent = 'OK — websocket opened';
+  } catch (e) {
+    wEl.textContent = 'FAILED — ' + (e && e.message ? e.message : e);
+  }
 });
 $('btn-export-refresh').addEventListener('click', refreshExport);
 $('btn-import').addEventListener('click', () => {

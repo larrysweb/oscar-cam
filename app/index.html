@@ -109,8 +109,16 @@
     <textarea id="s-import" rows="8" placeholder="Paste an exported configuration here to restore it." aria-label="Import configuration"></textarea>
     <button id="btn-import" type="button">Import</button>
     <p id="settings-msg" class="hidden"></p>
+    <h3>Diagnostics</h3>
+    <p class="hint">Shows how this app reaches go2rtc. Run the tests, then report what each line says.</p>
+    <p>Page URL: <span id="diag-url">—</span></p>
+    <p>Secure context: <span id="diag-secure">—</span></p>
+    <p>Browser: <span id="diag-ua">—</span></p>
+    <p>HTTP test: <span id="diag-fetch">Not run yet</span></p>
+    <p>WebSocket test: <span id="diag-ws">Not run yet</span></p>
+    <button id="btn-diag-run" type="button">Run connection tests</button>
     <h3>About</h3>
-    <p>Oscar Cam 0.1.0 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>Oscar Cam 0.1.1 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
     <p>Playback credits: VideoRTC by AlexxIT (go2rtc project, MIT) for go2rtc and WebRTC tiles; hls.js for HLS tiles. Proven on the C3: 9 simultaneous go2rtc substreams, smooth. Raw RTSP is not playable in the TV browser — use go2rtc or a camera-native browser-playable stream.</p>
     <button id="btn-back-grid-2" type="button">Back to grid</button>
   </section>

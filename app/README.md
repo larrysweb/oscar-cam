@@ -1,4 +1,4 @@
-# Oscar Cam 0.1.0 (MVP)
+# Oscar Cam 0.1.1 (MVP)
 
 A free, LAN-only camera grid for rooted LG webOS TVs. No account, no
 cloud, no telemetry. Camera credentials stay on the TV.
@@ -59,8 +59,9 @@ cloud, no telemetry. Camera credentials stay on the TV.
 
 - Homebrew Channel custom repo (CHOSEN 2026-10-25): publish kit in
   `../homebrew-repo/` (manifests, IPK, icon, publish + TV steps).
-  Proposed repo `larrysweb/oscar-cam` with GitHub Pages from `docs/`;
-  repo does not exist yet — creation is Larry's call.
+  Repo `larrysweb/oscar-cam` (public); text files pushed 2026-10-25
+  (commit `d0980932`). Binaries (IPK, icons) and the Pages switch are
+  still to do by hand — see `../homebrew-repo/README.md`.
 - webOS Dev Mode + `ares-install` from a PC with the webOS SDK (fallback).
 - A rooted-TV shell install is possible in principle (SSH port 22 is
   open on the C3) but no SSH login is known — do not guess credentials.
