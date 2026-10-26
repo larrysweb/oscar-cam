@@ -40,7 +40,12 @@ and add them with a tap. Arrange them in Edit layout, including a 4x4 grid
 2. Cameras → add cameras by hand (go2rtc stream, WebRTC ws URL, MJPEG URL,
    or HLS URL), or Discover cameras to find ONVIF cameras and pick a grid
    stream (usually the substream) and a fullscreen stream (usually the
-   main stream).
+   main stream). If Discover finds nothing (a camera without ONVIF, or
+   with ONVIF disabled), look up your brand and model in the iSpyConnect
+   camera connection database for its RTSP or MJPEG URL, then feed that
+   URL to go2rtc (RTSP) or add it directly (MJPEG/HLS):
+   https://www.ispyconnect.com/cameras — entries are crowdsourced, so a
+   listed URL may be wrong for your exact model.
 3. Edit layout → pick a preset (1, 2×2, 3×3, 4×4) or drag tiles into a
    freeform grid. With the remote alone: select a tile, press OK to move
    it, arrows to move, OK to place, Back to cancel.
