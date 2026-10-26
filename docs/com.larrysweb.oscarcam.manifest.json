@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "type": "web",
   "title": "Oscar Cam",
-  "appDescription": "Free, LAN-only camera grid for rooted LG webOS TVs. Arrange IP cameras in an adjustable grid; plays go2rtc, WebRTC, MJPEG and HLS streams. No account, no cloud, no telemetry.",
+  "appDescription": "Free, LAN-only camera grid for rooted LG webOS TVs. Arrange IP cameras in an adjustable grid; plays go2rtc, WebRTC, MJPEG and HLS streams. No account, no cloud, no telemetry. Requires go2rtc running on your home network for RTSP cameras (it does not run on the TV).",
   "iconUri": "https://larrysweb.github.io/oscar-cam/icon.png",
   "sourceUrl": "https://github.com/larrysweb/oscar-cam",
   "rootRequired": false,

@@ -6,10 +6,18 @@ no telemetry. Camera credentials stay on the TV.
 ## What you need
 
 - A rooted LG TV running webOS 5 or later, with the Homebrew Channel installed.
-- [go2rtc](https://github.com/AlexxIT/go2rtc) running somewhere on your home
-  network (a NAS, a Raspberry Pi, a PC). Oscar Cam plays through go2rtc —
-  raw RTSP does not play in the TV browser.
-- ONVIF cameras, or any camera go2rtc can already stream.
+- A machine on your home network to run [go2rtc](https://github.com/AlexxIT/go2rtc)
+  (a NAS, a Raspberry Pi, an old PC, or a mini-PC — as a plain binary or a
+  Docker container). go2rtc does NOT run on the TV itself, and the TV app
+  cannot host it: Oscar Cam is only the viewer, and go2rtc is the server
+  that restreams your cameras into a form the TV browser can play. That
+  machine needs to be on while you are watching. If you do not have a
+  server of any kind, a Raspberry Pi or any old computer will do — it does
+  not have to be a Synology.
+- ONVIF cameras, or any camera go2rtc can already stream. Cameras that
+  natively serve MJPEG or HLS work without go2rtc, but most IP cameras are
+  RTSP-only, and raw RTSP does not play in the TV browser — that is why
+  go2rtc is in the stack.
 
 ## Install
 
