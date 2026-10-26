@@ -37,9 +37,25 @@ label { display: inline-block; margin: 6px 10px 6px 0; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 8px; }
 .hint { color: #bbb; font-size: 18px; max-width: 1100px; }
 .error { color: #ff6666; }
-#camera-list .cam-row { display: flex; align-items: center; gap: 8px; padding: 10px;
-  border-bottom: 1px solid #333; }
 #camera-list .cam-row span { flex: 1; }
+#discover-list .cam-row { display: flex; align-items: center; gap: 8px; padding: 10px;
+  border-bottom: 1px solid #333; }
+#discover-list .cam-row span { flex: 1; }
+#discover-block label { display: block; margin: 10px 0; max-width: 900px; }
+#discover-block input, #discover-block select { width: 100%; }
+#discover-add { border: 2px solid #333; border-radius: 8px; padding: 12px; margin: 12px 0; max-width: 900px; }
+#discover-add label { display: block; margin: 10px 0; }
+#discover-add input, #discover-add select { width: 100%; }
+
+/* Burn-in protection: fade the app's own chrome, shift the grid a few
+   pixels on a timer (set from JS), dim/blank the screen when idle. */
+#topbar, .tile .label, #fs-bar { transition: opacity 0.8s; }
+body.ui-hidden #topbar, body.ui-hidden .tile .label, body.ui-hidden #fs-bar { opacity: 0; }
+#grid { transition: transform 1s; }
+#burnin-dimmer { position: fixed; inset: 0; background: #000; opacity: 0;
+  pointer-events: none; z-index: 100; transition: opacity 1s; }
+#burnin-dimmer.dim { opacity: 0.55; }
+#burnin-dimmer.blank { opacity: 1; }
 #cam-form { border: 2px solid #333; border-radius: 8px; padding: 12px; margin: 12px 0; max-width: 900px; }
 #cam-form label { display: block; margin: 10px 0; }
 #cam-form input, #cam-form select { width: 100%; }

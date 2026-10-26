@@ -71,6 +71,26 @@
   <section id="view-cameras" class="view hidden">
     <h2>Cameras</h2>
     <div id="camera-list"></div>
+    <h3>Discover cameras</h3>
+    <p class="hint">Finds ONVIF cameras on your network through go2rtc — no config-file edit needed. Enter the camera login once; it stays on the TV and is reused for the next scan.</p>
+    <div id="discover-block">
+      <label>Camera username <input id="d-user" type="text" autocomplete="off"></label>
+      <label>Camera password <input id="d-pass" type="password" autocomplete="off"></label>
+      <button id="btn-discover" type="button">Discover cameras</button>
+      <p id="discover-msg" class="hidden"></p>
+      <div id="discover-list"></div>
+      <div id="discover-add" class="hidden">
+        <label>Name <input id="da-name" type="text" autocomplete="off"></label>
+        <label>Grid stream
+          <select id="da-grid"></select>
+        </label>
+        <label>Fullscreen stream
+          <select id="da-fs"></select>
+        </label>
+        <button id="btn-da-save" type="button" class="primary">Add camera</button>
+        <button id="btn-da-cancel" type="button">Cancel</button>
+      </div>
+    </div>
     <h3 id="cam-form-title">Add camera</h3>
     <form id="cam-form">
       <label>Name <input id="f-name" type="text" autocomplete="off"></label>
@@ -101,9 +121,14 @@
     <label>go2rtc server URL
       <input id="s-go2rtc" type="text" inputmode="url" placeholder="http://192.168.0.58:1984">
     </label>
+    <h3>Burn-in protection (OLED)</h3>
+    <p class="hint">For grids left up a long time. Hiding the interface and shifting the picture a few pixels are the two that matter most; dimming covers hours-long viewing. Any remote key or pointer movement wakes everything back up.</p>
+    <label><input id="s-burn-hide" type="checkbox"> Hide interface after 10 seconds idle</label>
+    <label><input id="s-burn-orbit" type="checkbox"> Shift picture a few pixels every 5 minutes</label>
+    <label><input id="s-burn-dim" type="checkbox"> Dim after 15 minutes idle, blank after 30</label>
     <button id="btn-settings-save" type="button" class="primary">Save settings</button>
     <h3>Backup / restore</h3>
-    <p class="hint">This is the same format the future Android companion app will use to send a configuration to the TV.</p>
+    <p class="hint">Export a backup of your whole configuration, or move it to another TV.</p>
     <textarea id="s-export" rows="8" readonly aria-label="Exported configuration"></textarea>
     <button id="btn-export-refresh" type="button">Refresh export</button>
     <textarea id="s-import" rows="8" placeholder="Paste an exported configuration here to restore it." aria-label="Import configuration"></textarea>
@@ -118,11 +143,14 @@
     <p>WebSocket test: <span id="diag-ws">Not run yet</span></p>
     <button id="btn-diag-run" type="button">Run connection tests</button>
     <h3>About</h3>
-    <p>Oscar Cam 0.1.1 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>Oscar Cam 0.1.2 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
     <p>Playback credits: VideoRTC by AlexxIT (go2rtc project, MIT) for go2rtc and WebRTC tiles; hls.js for HLS tiles. Proven on the C3: 9 simultaneous go2rtc substreams, smooth. Raw RTSP is not playable in the TV browser — use go2rtc or a camera-native browser-playable stream.</p>
     <button id="btn-back-grid-2" type="button">Back to grid</button>
   </section>
 </main>
+
+<!-- Burn-in dimmer overlay (grid + fullscreen idle protection) -->
+<div id="burnin-dimmer"></div>
 
 <!-- Fullscreen overlay -->
 <div id="fullscreen" class="hidden" role="dialog" aria-label="Fullscreen camera">

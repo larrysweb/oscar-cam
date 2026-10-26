@@ -1,8 +1,8 @@
-// Oscar Cam 0.1.1 — LAN-only camera grid for webOS TV.
+// Oscar Cam 0.1.2 — LAN-only camera grid for webOS TV.
 // Playback: go2rtc / WebRTC tiles use VideoRTC (AlexxIT, go2rtc project,
 // MIT) bundled as video-rtc.js. HLS tiles use hls.js. MJPEG tiles use <img>.
-// State lives in localStorage under LS_KEY. The exported JSON format is
-// also the format the future Android companion app will send to the TV.
+// State lives in localStorage under LS_KEY. The exported JSON format is a
+// portable backup of the whole configuration.
 import { VideoRTC } from './video-rtc.js';
 customElements.define('video-rtc', VideoRTC);
 
@@ -31,11 +31,14 @@ function loadState() {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.cameras) && Array.isArray(parsed.layouts)) {
         if (!parsed.settings) parsed.settings = { go2rtcBase: '' };
+        if (!parsed.settings.burnin) parsed.settings.burnin = { hideUi: true, orbit: true, dim: true };
+        if (parsed.settings.camUser === undefined) parsed.settings.camUser = '';
+        if (parsed.settings.camPass === undefined) parsed.settings.camPass = '';
         return parsed;
       }
     }
   } catch (e) { /* fall through to default */ }
-  return { settings: { go2rtcBase: '' }, cameras: [], layouts: [], activeLayoutId: null };
+  return { settings: { go2rtcBase: '', burnin: { hideUi: true, orbit: true, dim: true }, camUser: '', camPass: '' }, cameras: [], layouts: [], activeLayoutId: null };
 }
 
 function saveState() {
@@ -68,9 +71,21 @@ function camById(id) { return state.cameras.find((c) => c.id === id) || null; }
 
 function go2rtcBase() { return (state.settings.go2rtcBase || '').replace(/\/+$/, ''); }
 
-// Inject username:password into a URL that has none (best effort; some
-// browsers restrict embedded credentials, in which case the camera's own
-// login handling or go2rtc is the fallback).
+// Strip embedded credentials from a URL before showing it on screen
+// (camera list, diagnostics). The stored value keeps them; only the
+// displayed copy is masked.
+function maskCreds(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    if (u.username || u.password) {
+      u.username = '…';
+      u.password = '';
+      return u.toString();
+    }
+  } catch (e) { /* not an absolute URL; fall through */ }
+  return url.replace(/:\/\/[^/@\s]+@/, '://…@');
+}
 function withCreds(url, cam) {
   if (!cam.username || !url) return url;
   try {
@@ -90,9 +105,66 @@ function showView(name) {
     $('view-' + v).classList.toggle('hidden', v !== name);
   }
   if (name === 'grid') renderGridView();
-  if (name === 'cameras') renderCameraList();
-  if (name === 'settings') { refreshExport(); refreshDiagnostics(); }
+  if (name === 'cameras') { renderCameraList(); $('d-user').value = state.settings.camUser || ''; $('d-pass').value = state.settings.camPass || ''; }
+  if (name === 'settings') { refreshExport(); refreshDiagnostics(); refreshBurninSettings(); }
+  if (name === 'grid') resetIdle();
+  else clearIdle();
 }
+
+// ---- Burn-in protection (OLED) ----
+// Active on the grid view and fullscreen only: hide the app's own chrome
+// after 10s idle, shift the grid a few pixels every 5 minutes (pixel
+// orbit — this also moves the cameras' on-screen timestamps, which are
+// burned into the streams), dim after 15 minutes idle, blank after 30.
+// Any remote key or pointer activity resets everything.
+const ORBIT_OFFSETS = [[0, 0], [4, 0], [4, 4], [0, 4], [-4, 0], [-4, -4], [0, -4]];
+let idleHideTimer = null;
+let idleDimTimer = null;
+let idleBlankTimer = null;
+let orbitTimer = null;
+let orbitStep = 0;
+
+function burnin() { return state.settings.burnin || { hideUi: true, orbit: true, dim: true }; }
+
+function clearIdle() {
+  for (const t of [idleHideTimer, idleDimTimer, idleBlankTimer]) if (t) clearTimeout(t);
+  if (orbitTimer) { clearInterval(orbitTimer); orbitTimer = null; }
+  idleHideTimer = idleDimTimer = idleBlankTimer = null;
+  orbitStep = 0;
+  document.body.classList.remove('ui-hidden');
+  const dimmer = $('burnin-dimmer');
+  if (dimmer) dimmer.classList.remove('dim', 'blank');
+  const grid = $('grid');
+  if (grid) grid.style.transform = '';
+}
+
+function resetIdle() {
+  clearIdle();
+  const fullscreenOpen = $('fullscreen') && !$('fullscreen').classList.contains('hidden');
+  if (currentView !== 'grid' && !fullscreenOpen) return;
+  const b = burnin();
+  if (b.hideUi) {
+    idleHideTimer = setTimeout(() => document.body.classList.add('ui-hidden'), 10000);
+  }
+  if (b.dim) {
+    idleDimTimer = setTimeout(() => { const d = $('burnin-dimmer'); if (d) d.classList.add('dim'); }, 15 * 60 * 1000);
+    idleBlankTimer = setTimeout(() => { const d = $('burnin-dimmer'); if (d) d.classList.add('blank'); }, 30 * 60 * 1000);
+  }
+  if (b.orbit && currentView === 'grid') {
+    orbitTimer = setInterval(() => {
+      orbitStep = (orbitStep + 1) % ORBIT_OFFSETS.length;
+      const off = ORBIT_OFFSETS[orbitStep];
+      const grid = $('grid');
+      if (grid) grid.style.transform = 'translate(' + off[0] + 'px,' + off[1] + 'px)';
+    }, 5 * 60 * 1000);
+  }
+}
+
+['keydown', 'pointerdown', 'mousemove'].forEach((ev) =>
+  document.addEventListener(ev, () => {
+    const fullscreenOpen = $('fullscreen') && !$('fullscreen').classList.contains('hidden');
+    if (currentView === 'grid' || fullscreenOpen) resetIdle();
+  }, true));
 
 function setTileStatus(tileEl, text) {
   const st = tileEl.querySelector('.status');
@@ -295,6 +367,7 @@ function openFullscreen(cam) {
   muteBtn.textContent = 'Unmute';
   $('fullscreen').classList.remove('hidden');
   $('btn-fs-back').focus();
+  resetIdle();
 }
 
 function closeFullscreen() {
@@ -418,7 +491,7 @@ function renderCameraList() {
     const row = document.createElement('div');
     row.className = 'cam-row';
     const label = document.createElement('span');
-    label.textContent = cam.name + '  (' + cam.type + (cam.type === 'go2rtc' ? ': ' + cam.stream : ': ' + cam.url) + ')';
+    label.textContent = cam.name + '  (' + cam.type + (cam.type === 'go2rtc' ? ': ' + maskCreds(cam.stream) : ': ' + maskCreds(cam.url)) + ')';
     const edit = document.createElement('button');
     edit.type = 'button';
     edit.textContent = 'Edit';
@@ -463,6 +536,144 @@ function openCamForm(cam) {
   toggleCamFormRows();
 }
 
+// ---- ONVIF discovery (through go2rtc) ----
+// The TV app cannot send UDP multicast itself, but go2rtc can: GET
+// /api/onvif runs the scan server-side and returns the cameras it found.
+// Adding one fetches its profiles the same way, then stores the chosen
+// profile's stream URL as a go2rtc camera (go2rtc resolves arbitrary
+// source URLs on demand, so no config-file edit is needed).
+let discoveredDevices = [];
+let pendingDevice = null;
+
+function discoverMsg(text, isError) {
+  const el = $('discover-msg');
+  el.textContent = text;
+  el.classList.toggle('hidden', !text);
+  el.classList.toggle('error', !!isError);
+}
+
+function onvifUrlWithCreds(deviceUrl, user, pass) {
+  try {
+    const u = new URL(deviceUrl);
+    if (user) u.username = user;
+    if (pass) u.password = pass;
+    return u.toString();
+  } catch (e) { return deviceUrl; }
+}
+
+function renderDiscoverList() {
+  const list = $('discover-list');
+  list.innerHTML = '';
+  discoveredDevices.forEach((dev) => {
+    const row = document.createElement('div');
+    row.className = 'cam-row';
+    const label = document.createElement('span');
+    label.textContent = (dev.info || 'Camera') + ' (' + dev.name + ')';
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.textContent = 'Add';
+    add.addEventListener('click', () => startDiscoverAdd(dev));
+    row.appendChild(label);
+    row.appendChild(add);
+    list.appendChild(row);
+  });
+}
+
+async function runDiscovery() {
+  const base = go2rtcBase();
+  if (!base) { discoverMsg('Set the go2rtc server URL in Settings first.', true); return; }
+  discoverMsg('Scanning… (this takes a few seconds)');
+  $('discover-list').innerHTML = '';
+  $('discover-add').classList.add('hidden');
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 25000);
+    const res = await fetch(base + '/api/onvif', { signal: ctl.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const seen = new Set();
+    discoveredDevices = (data.sources || []).filter((d) => {
+      if (!d.url || seen.has(d.url)) return false;
+      seen.add(d.url);
+      return true;
+    });
+    if (discoveredDevices.length === 0) discoverMsg('No ONVIF cameras found on this network.');
+    else discoverMsg('Found ' + discoveredDevices.length + ' camera(s). Tap Add, then pick a stream.');
+    renderDiscoverList();
+  } catch (e) {
+    discoverMsg('Discovery failed: ' + (e && e.message ? e.message : e), true);
+  }
+}
+
+async function startDiscoverAdd(dev) {
+  const base = go2rtcBase();
+  const user = $('d-user').value.trim();
+  const pass = $('d-pass').value;
+  pendingDevice = dev;
+  discoverMsg('Reading profiles for ' + (dev.info || dev.name) + '…');
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 20000);
+    const src = onvifUrlWithCreds(dev.url, user, pass);
+    const res = await fetch(base + '/api/onvif?src=' + encodeURIComponent(src), { signal: ctl.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const profiles = (data.sources || []).filter((s) => s.url && !/snapshot$/i.test(s.name || ''));
+    if (profiles.length === 0) throw new Error('no video profiles returned');
+    pendingDevice.profiles = profiles;
+    const host = dev.name || '';
+    const lastOctet = (host.split(':')[0].split('.').pop() || '');
+    $('da-name').value = (dev.info || 'Camera') + (lastOctet ? ' ' + lastOctet : '');
+    const gridSel = $('da-grid');
+    const fsSel = $('da-fs');
+    gridSel.innerHTML = '';
+    fsSel.innerHTML = '';
+    profiles.forEach((p, i) => {
+      const o1 = document.createElement('option');
+      o1.value = p.url;
+      o1.textContent = p.name;
+      if (i === profiles.length - 1) o1.selected = true;
+      gridSel.appendChild(o1);
+      const o2 = document.createElement('option');
+      o2.value = p.url;
+      o2.textContent = p.name;
+      fsSel.appendChild(o2);
+    });
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'Same as grid';
+    none.selected = true;
+    fsSel.insertBefore(none, fsSel.firstChild);
+    $('discover-add').classList.remove('hidden');
+    discoverMsg('');
+  } catch (e) {
+    discoverMsg("Couldn't read that camera's profiles — check the camera login above. " + (e && e.message ? e.message : e), true);
+  }
+}
+
+function saveDiscoverAdd() {
+  if (!pendingDevice || !pendingDevice.profiles) return;
+  const name = $('da-name').value.trim();
+  if (!name) { discoverMsg('Name is required.', true); return; }
+  const stream = $('da-grid').value;
+  const mainStream = $('da-fs').value;
+  if (!stream) { discoverMsg('Pick a grid stream.', true); return; }
+  const rec = { id: uid(), name, type: 'go2rtc', stream, mainStream, url: '', username: '', password: '' };
+  state.cameras.push(rec);
+  state.settings.camUser = $('d-user').value.trim();
+  state.settings.camPass = $('d-pass').value;
+  const layout = ensureLayout();
+  let spot = findFreeSpot(layout);
+  if (!spot) { layout.rows += 1; spot = { x: 0, y: layout.rows - 1 }; }
+  layout.cells.push({ cameraId: rec.id, x: spot.x, y: spot.y, w: 1, h: 1 });
+  saveState();
+  $('discover-add').classList.add('hidden');
+  discoverMsg('Added ' + name + ' — it is on the grid now.');
+  renderCameraList();
+}
+
 // ---- Settings ----
 function refreshExport() {
   $('s-export').value = JSON.stringify(state, null, 2);
@@ -473,6 +684,13 @@ function refreshDiagnostics() {
   $('diag-url').textContent = location.href;
   $('diag-secure').textContent = String(window.isSecureContext);
   $('diag-ua').textContent = navigator.userAgent;
+}
+
+function refreshBurninSettings() {
+  const b = burnin();
+  $('s-burn-hide').checked = !!b.hideUi;
+  $('s-burn-orbit').checked = !!b.orbit;
+  $('s-burn-dim').checked = !!b.dim;
 }
 
 // ---- Spatial navigation (remote arrows) ----
@@ -739,8 +957,17 @@ $('cam-form').addEventListener('submit', (ev) => {
 });
 $('btn-cam-cancel').addEventListener('click', () => openCamForm(null));
 
+$('btn-discover').addEventListener('click', runDiscovery);
+$('btn-da-save').addEventListener('click', saveDiscoverAdd);
+$('btn-da-cancel').addEventListener('click', () => { $('discover-add').classList.add('hidden'); pendingDevice = null; });
+
 $('btn-settings-save').addEventListener('click', () => {
   state.settings.go2rtcBase = $('s-go2rtc').value.trim().replace(/\/+$/, '');
+  state.settings.burnin = {
+    hideUi: $('s-burn-hide').checked,
+    orbit: $('s-burn-orbit').checked,
+    dim: $('s-burn-dim').checked,
+  };
   saveState();
   const msg = $('settings-msg');
   msg.textContent = 'Settings saved.';
@@ -765,7 +992,7 @@ $('btn-diag-run').addEventListener('click', async () => {
     fEl.textContent = 'FAILED — ' + (e && e.name ? e.name + ': ' : '') + (e && e.message ? e.message : e);
   }
   const wsUrl = base.replace(/^http/, 'ws') + '/api/ws?src=' + encodeURIComponent(stream);
-  wEl.textContent = 'Trying ' + wsUrl + ' …';
+  wEl.textContent = 'Trying ' + maskCreds(wsUrl) + ' …';
   try {
     await new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
