@@ -1,4 +1,4 @@
-// Oscar Cam 0.1.2 — LAN-only camera grid for webOS TV.
+// Oscar Cam 0.1.3 — LAN-only camera grid for webOS TV.
 // Playback: go2rtc / WebRTC tiles use VideoRTC (AlexxIT, go2rtc project,
 // MIT) bundled as video-rtc.js. HLS tiles use hls.js. MJPEG tiles use <img>.
 // State lives in localStorage under LS_KEY. The exported JSON format is a
@@ -34,11 +34,12 @@ function loadState() {
         if (!parsed.settings.burnin) parsed.settings.burnin = { hideUi: true, orbit: true, dim: true };
         if (parsed.settings.camUser === undefined) parsed.settings.camUser = '';
         if (parsed.settings.camPass === undefined) parsed.settings.camPass = '';
+        if (parsed.settings.ptzBase === undefined) parsed.settings.ptzBase = '';
         return parsed;
       }
     }
   } catch (e) { /* fall through to default */ }
-  return { settings: { go2rtcBase: '', burnin: { hideUi: true, orbit: true, dim: true }, camUser: '', camPass: '' }, cameras: [], layouts: [], activeLayoutId: null };
+  return { settings: { go2rtcBase: '', ptzBase: '', burnin: { hideUi: true, orbit: true, dim: true }, camUser: '', camPass: '' }, cameras: [], layouts: [], activeLayoutId: null };
 }
 
 function saveState() {
@@ -365,6 +366,8 @@ function openFullscreen(cam) {
   const isImg = cam.type === 'mjpeg';
   muteBtn.classList.toggle('hidden', isImg);
   muteBtn.textContent = 'Unmute';
+  $('btn-fs-ptz').classList.toggle('hidden', cam.type !== 'go2rtc');
+  setPtzMode(false);
   $('fullscreen').classList.remove('hidden');
   $('btn-fs-back').focus();
   resetIdle();
@@ -372,6 +375,7 @@ function openFullscreen(cam) {
 
 function closeFullscreen() {
   fsCam = null;
+  setPtzMode(false);
   clearTileTimers('fs');
   $('fs-player').innerHTML = '';
   $('fullscreen').classList.add('hidden');
@@ -384,6 +388,72 @@ function toggleFsMute() {
   fsMuted = !fsMuted;
   video.muted = fsMuted;
   $('btn-fs-mute').textContent = fsMuted ? 'Unmute' : 'Mute';
+}
+
+// ---- PTZ (through the NAS-side proxy) ----
+// The TV cannot call the cameras' ONVIF services directly (no CORS), so
+// fullscreen PTZ mode sends small JSON actions to the proxy on the NAS,
+// which issues the ONVIF RelativeMove / GotoHomePosition calls with the
+// camera logins held server-side. Steps are bounded RelativeMoves, so a
+// lost message can never send a camera spinning.
+let ptzMode = false;
+let ptzBusy = false;
+
+// Proxy URL: explicit setting, else the go2rtc host on port 1985.
+function ptzBase() {
+  if (state.settings.ptzBase) return state.settings.ptzBase.replace(/\/+$/, '');
+  const base = go2rtcBase();
+  if (!base) return '';
+  try {
+    const u = new URL(base);
+    u.port = '1985';
+    return u.toString().replace(/\/+$/, '');
+  } catch (e) { return ''; }
+}
+
+// Proxy camera key: the stream-name prefix (cam1_front_street_sub -> cam1).
+function ptzKeyFor(cam) {
+  const s = (cam.stream || '').toLowerCase();
+  return s.split('_')[0].split('-')[0] || '';
+}
+
+function ptzStatus(text) {
+  const el = $('fs-ptz-status');
+  if (el) el.textContent = text;
+}
+
+function setPtzMode(on) {
+  ptzMode = !!on;
+  $('fs-ptz').classList.toggle('hidden', !ptzMode);
+  $('btn-fs-ptz').textContent = ptzMode ? 'PTZ: on' : 'PTZ';
+  if (ptzMode) ptzStatus('Arrows step the camera. Zoom and Home are below.');
+}
+
+async function sendPtz(action) {
+  if (ptzBusy) return;
+  const base = ptzBase();
+  if (!base) { ptzStatus('PTZ proxy URL not set — check Settings.'); return; }
+  if (!fsCam) return;
+  ptzBusy = true;
+  ptzStatus('Moving…');
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 15000);
+    const res = await fetch(base + '/ptz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ camera: ptzKeyFor(fsCam), action }),
+      signal: ctl.signal,
+    });
+    clearTimeout(t);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* non-JSON error */ }
+    if (res.ok && data.ok) ptzStatus('OK — ' + action);
+    else ptzStatus('Failed: ' + (data.error || ('HTTP ' + res.status)));
+  } catch (e) {
+    ptzStatus('Failed: ' + (e && e.message ? e.message : e));
+  }
+  ptzBusy = false;
 }
 
 // ---- Layout editor ----
@@ -678,6 +748,7 @@ function saveDiscoverAdd() {
 function refreshExport() {
   $('s-export').value = JSON.stringify(state, null, 2);
   $('s-go2rtc').value = state.settings.go2rtcBase || '';
+  $('s-ptz').value = state.settings.ptzBase || '';
 }
 
 function refreshDiagnostics() {
@@ -757,7 +828,18 @@ document.addEventListener('keydown', (ev) => {
   const inField = active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
 
   if ($('fullscreen') && !$('fullscreen').classList.contains('hidden')) {
-    if (BACK) { ev.preventDefault(); closeFullscreen(); }
+    if (BACK) {
+      ev.preventDefault();
+      if (ptzMode) setPtzMode(false);
+      else closeFullscreen();
+      return;
+    }
+    if (ptzMode && k >= 37 && k <= 40) {
+      ev.preventDefault();
+      const dir = k === 37 ? 'left' : k === 39 ? 'right' : k === 38 ? 'up' : 'down';
+      sendPtz(dir);
+      return;
+    }
     return;
   }
 
@@ -963,6 +1045,7 @@ $('btn-da-cancel').addEventListener('click', () => { $('discover-add').classList
 
 $('btn-settings-save').addEventListener('click', () => {
   state.settings.go2rtcBase = $('s-go2rtc').value.trim().replace(/\/+$/, '');
+  state.settings.ptzBase = $('s-ptz').value.trim().replace(/\/+$/, '');
   state.settings.burnin = {
     hideUi: $('s-burn-hide').checked,
     orbit: $('s-burn-orbit').checked,
@@ -1029,6 +1112,11 @@ $('btn-import').addEventListener('click', () => {
 
 $('btn-fs-back').addEventListener('click', closeFullscreen);
 $('btn-fs-mute').addEventListener('click', toggleFsMute);
+$('btn-fs-ptz').addEventListener('click', () => setPtzMode(!ptzMode));
+$('btn-ptz-zoom-in').addEventListener('click', () => sendPtz('zoom_in'));
+$('btn-ptz-zoom-out').addEventListener('click', () => sendPtz('zoom_out'));
+$('btn-ptz-home').addEventListener('click', () => sendPtz('home'));
+$('btn-ptz-exit').addEventListener('click', () => setPtzMode(false));
 
 // ---- Init ----
 if (state.layouts.length === 0 && state.cameras.length > 0) {

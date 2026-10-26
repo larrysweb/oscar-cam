@@ -121,6 +121,10 @@
     <label>go2rtc server URL
       <input id="s-go2rtc" type="text" inputmode="url" placeholder="http://192.168.0.58:1984">
     </label>
+    <label>PTZ proxy URL
+      <input id="s-ptz" type="text" inputmode="url" placeholder="http://192.168.0.58:1985">
+    </label>
+    <p class="hint">The NAS-side PTZ proxy (port 1985). Leave blank to use the same host as the go2rtc server URL above. Camera passwords live on the NAS, never in the TV app.</p>
     <h3>Burn-in protection (OLED)</h3>
     <p class="hint">For grids left up a long time. Hiding the interface and shifting the picture a few pixels are the two that matter most; dimming covers hours-long viewing. Any remote key or pointer movement wakes everything back up.</p>
     <label><input id="s-burn-hide" type="checkbox"> Hide interface after 10 seconds idle</label>
@@ -143,7 +147,8 @@
     <p>WebSocket test: <span id="diag-ws">Not run yet</span></p>
     <button id="btn-diag-run" type="button">Run connection tests</button>
     <h3>About</h3>
-    <p>Oscar Cam 0.1.2 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>Oscar Cam 0.1.3 — a free, LAN-only camera grid for webOS TV. No account, no cloud, no telemetry. Camera credentials stay on the TV.</p>
+    <p>PTZ: in fullscreen, tap PTZ — remote arrows step the camera, with zoom in/out and Home buttons. Moves go through a small proxy on your NAS (port 1985) that holds the camera logins, so they never sit in the TV app. PTZ is offered for go2rtc cameras only.</p>
     <p>Playback credits: VideoRTC by AlexxIT (go2rtc project, MIT) for go2rtc and WebRTC tiles; hls.js for HLS tiles. Proven on the C3: 9 simultaneous go2rtc substreams, smooth. Raw RTSP is not playable in the TV browser — use go2rtc or a camera-native browser-playable stream.</p>
     <button id="btn-back-grid-2" type="button">Back to grid</button>
   </section>
@@ -158,7 +163,16 @@
   <div id="fs-bar">
     <span id="fs-name"></span>
     <button id="btn-fs-mute" type="button">Unmute</button>
+    <button id="btn-fs-ptz" type="button">PTZ</button>
     <button id="btn-fs-back" type="button">Back</button>
+  </div>
+  <div id="fs-ptz" class="hidden">
+    <p class="hint">PTZ mode — arrow keys step the camera. Zoom, Home, and Exit work by pointer tap too.</p>
+    <button id="btn-ptz-zoom-in" type="button">Zoom in</button>
+    <button id="btn-ptz-zoom-out" type="button">Zoom out</button>
+    <button id="btn-ptz-home" type="button">Home</button>
+    <button id="btn-ptz-exit" type="button">Exit PTZ</button>
+    <p id="fs-ptz-status"></p>
   </div>
 </div>
 

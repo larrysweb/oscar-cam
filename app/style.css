@@ -49,8 +49,8 @@ label { display: inline-block; margin: 6px 10px 6px 0; }
 
 /* Burn-in protection: fade the app's own chrome, shift the grid a few
    pixels on a timer (set from JS), dim/blank the screen when idle. */
-#topbar, .tile .label, #fs-bar { transition: opacity 0.8s; }
-body.ui-hidden #topbar, body.ui-hidden .tile .label, body.ui-hidden #fs-bar { opacity: 0; }
+#topbar, .tile .label, #fs-bar, #fs-ptz { transition: opacity 0.8s; }
+body.ui-hidden #topbar, body.ui-hidden .tile .label, body.ui-hidden #fs-bar, body.ui-hidden #fs-ptz { opacity: 0; }
 #grid { transition: transform 1s; }
 #burnin-dimmer { position: fixed; inset: 0; background: #000; opacity: 0;
   pointer-events: none; z-index: 100; transition: opacity 1s; }
@@ -70,3 +70,6 @@ body.ui-hidden #topbar, body.ui-hidden .tile .label, body.ui-hidden #fs-bar { op
   display: flex; align-items: center; justify-content: space-between;
   background: #0b0f14; padding: 0 16px; }
 #fs-name { font-size: 26px; }
+#fs-ptz { position: absolute; right: 16px; bottom: 80px; background: rgba(11,15,20,0.92);
+  border: 2px solid #555; border-radius: 8px; padding: 12px; max-width: 600px; }
+#fs-ptz-status { margin: 8px 4px 0 4px; font-size: 18px; color: #bbb; min-height: 24px; }

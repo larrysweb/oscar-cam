@@ -67,6 +67,20 @@ protections, all on by default and adjustable in Settings:
 Any remote key or pointer movement wakes everything back up. These help, but
 they are not a substitute for turning the grid off when you are done watching.
 
+## PTZ control (from 0.1.3)
+
+Open a go2rtc camera fullscreen and tap PTZ: the remote arrows step the
+camera (small bounded moves), with zoom in/out and Home buttons in the
+pad. Back exits PTZ mode first, then fullscreen.
+
+The TV app cannot call the cameras' ONVIF services directly (no CORS),
+and go2rtc has no PTZ-send API, so moves go through a small proxy that
+runs on your NAS (port 1985, LAN only) — see `ptz-proxy/`. The proxy
+holds the camera logins, so they never sit in the TV app, and it only
+ever sends bounded relative moves: a lost message cannot send a camera
+spinning. PTZ on a real TV is not yet proven — advertised PTZ does not
+always mean the camera physically moves.
+
 ## Proven on an LG C3 (2026-10-25)
 
 - 0.1.1 plays all five home cameras live on the TV (front street, back
@@ -79,6 +93,7 @@ they are not a substitute for turning the grid off when you are done watching.
   states that anything unmentioned is "not supported or not recommended":
   https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm
 - ONVIF discovery (via go2rtc) is included from 0.1.2.
+- PTZ control is included from 0.1.3; moving a real camera on the TV is not yet proven.
 
 ## Security notes, stated plainly
 
@@ -89,6 +104,10 @@ they are not a substitute for turning the grid off when you are done watching.
   protects anything else.
 - If your go2rtc is reachable beyond your LAN, set its own authentication.
   Oscar Cam does not add any.
+- The PTZ proxy holds camera logins on your NAS (a 0600 file, never
+  committed to this repo); the TV app never sees them. Anyone on your
+  LAN can send PTZ moves to the proxy — the same trust class as
+  go2rtc's unauthenticated API.
 
 ## Testers wanted
 
@@ -109,6 +128,10 @@ when something does not play.
   `manifest.json`, the per-app manifest, the `.ipk`, and the icon.
 - `homebrew-repo/` — the manifest generator (`gen-manifest.py`) and
   publish notes.
+- `ptz-proxy/` — the NAS-side PTZ proxy (Python stdlib, Docker): the TV
+  app sends it JSON actions and it issues the ONVIF calls. Its camera
+  config (`cameras.json`, with passwords) is generated on your NAS and
+  must never be committed.
 
 ## Releasing a new version
 
@@ -122,5 +145,5 @@ when something does not play.
 
 ## Status
 
-Version 0.1.2. ONVIF discovery included. No PTZ yet. License: MIT (see
-`LICENSE`).
+Version 0.1.3. ONVIF discovery and PTZ control included (PTZ TV
+testing pending). License: MIT (see `LICENSE`).
